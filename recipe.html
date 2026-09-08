@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Рецепт - Русский очаг</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="recipes.js"></script>
+</head>
+<body>
+    <nav class="navigation">
+        <div class="link-info">
+            <a href="index.html" class="logo"></a>
+            <a href="index.html" class="logo-link">
+                <img src="лого.png" alt="Русский очаг" class="logo-img">
+            </a>
+        </div>
+        <div class="navigation-links">
+            <a href="catalog.html">Каталог рецептов</a>
+            <a href="history.html">Истории происхождения рецептов</a>
+            <a href="favorites.html">Избранное</a>
+            <a href="login.html" id="authLink">Вход</a>
+        </div>
+    </nav>
+
+    <main>
+        <div id="recipe-container" class="recipe-page">
+            <div class="recipe-loading">Загрузка...</div>
+        </div>
+    </main>
+
+    <footer class="footer">
+        <div class="footer-contacts">
+            <div class="footer-col">
+                <h2>Русский очаг</h2>
+                <p>Ваш надежный помощник в приготовлении русской кухни!</p>
+            </div>
+        </div>
+        <div class="footer-col">
+            <h2>Контакты</h2>
+            <ul class="footer-info">
+                <li>Номер телефона: 8(841)255-19-23</li>
+                <li>Электронная почта: russianochag@mail.ru</li>
+                <li>Адрес: г. Пенза, ул. Пушкина, д. 2</li>
+                <li>Режим работы: пн-вс: 9:00 - 21:00</li>
+            </ul>
+        </div>
+
+        <div class="footer-col">
+            <h3>Подписка</h3>
+            <p>Будьте в курсе новых рецептов от топовых поваров!</p>
+            <form class="footer-subscride" id="subscribeForm">
+                <input type="email" placeholder="Ваш email" required>
+                <button type="submit">Подписаться</button>
+            </form>
+            <p class="subscride-note">Подписываясь, вы соглашаетесь с условиями</p>
+        </div>
+        <div class="footer-bottom">
+            <div class="footer-bottom-content"></div>
+            <p>&copy; 2026 Русский очаг. Все права защищены.</p>
+        </div>
+    </footer>
+
+    <div id="messageToast" class="message-toast"></div>
+
+    <script src="validation.js"></script>
+    <script src="utils.js"></script>
+    <script>
+    //ПЕРЕМЕННЫЕ 
+    let currentFavorites = [];  // Массив для хранения ID рецептов, добавленных в избранное
+
+    // ФУНКЦИЯ: ПОЛУЧЕНИЕ ID РЕЦЕПТА ИЗ URL
+    // Пример: recipe.html?id=5 → вернёт 5
+    function getRecipeId() {
+        let params = new URLSearchParams(window.location.search);  // Парсим строку запроса URL
+        return parseInt(params.get('id'));  // Получаем значение параметра 'id' и превращаем в число
+    }
+
+    // ФУНКЦИЯ: ЗАГРУЗКА ИЗБРАННОГО С СЕРВЕРА
+    async function loadFavorites() {
+        const currentUser = getCurrentUser();  // Получаем текущего пользователя (из localStorage)
+        
+        if (!currentUser) {  // Если пользователь не авторизован
+            currentFavorites = [];  // Очищаем массив избранного
+            return;
+        }
+        
+        try {
+            const favorites = await getFavorites();  // Запрашиваем избранное с сервера
+            currentFavorites = Array.isArray(favorites) ? favorites : [];  // Сохраняем (убеждаемся что это массив)
+        } catch (error) {
+            currentFavorites = [];  // В случае ошибки - пустой массив
+        }
+    }
+
+    // ФУНКЦИЯ: ДОБАВЛЕНИЕ В ИЗБРАННОЕ (ЧЕРЕЗ API) 
+    async function addToFavoritesAPI(recipeId) {
+        const currentUser = getCurrentUser();  // Проверяем авторизацию
+        if (!currentUser) return false;  // Не авторизован - выходим
+        
+        const success = await addToFavorites(recipeId);  // Отправляем запрос на сервер
+        if (success) currentFavorites.push(recipeId);  // Если успешно - добавляем ID в локальный массив
+        return success;  // Возвращаем результат операции
+    }
+
+    // ФУНКЦИЯ: УДАЛЕНИЕ ИЗ ИЗБРАННОГО (ЧЕРЕЗ API)
+    async function removeFromFavoritesAPI(recipeId) {
+        const currentUser = getCurrentUser();  // Проверяем авторизацию
+        if (!currentUser) return false;
+        
+        const success = await removeFromFavorites(recipeId);  // Отправляем запрос на сервер
+        if (success) currentFavorites = currentFavorites.filter(id => id !== recipeId);  // Удаляем ID из массива
+        return success;
+    }
+
+    // ФУНКЦИЯ: ПРОВЕРКА - В ИЗБРАННОМ ЛИ РЕЦЕПТ 
+    function isFavorite(recipeId) {
+        return currentFavorites.includes(recipeId);  // true если ID есть в массиве
+    }
+
+    // ФУНКЦИЯ: ПЕРЕКЛЮЧЕНИЕ СОСТОЯНИЯ ИЗБРАННОГО (ДОБАВИТЬ/УДАЛИТЬ)
+    async function toggleFavorite(recipeId) {
+        const currentUser = getCurrentUser();  // Проверяем авторизацию
+        
+        if (!currentUser) {  // Если не авторизован
+            showMessage('Войдите в аккаунт, чтобы добавить в избранное', true);  // Показываем сообщение об ошибке
+            setTimeout(() => window.location.href = 'login.html', 1500);  // Через 1.5 сек перенаправляем на вход
+            return;
+        }
+        
+        if (isFavorite(recipeId)) {  // Если рецепт уже в избранном
+            const success = await removeFromFavoritesAPI(recipeId);  // Удаляем
+            if (success) {
+                showMessage('Рецепт удалён из избранного');  // Показываем уведомление
+                updateFavoriteButton(recipeId);  // Обновляем внешний вид кнопки
+            }
+        } else {  // Если рецепт НЕ в избранном
+            const success = await addToFavoritesAPI(recipeId);  // Добавляем
+            if (success) {
+                showMessage('Рецепт добавлен в избранное ❤️');
+                updateFavoriteButton(recipeId);
+            }
+        }
+    }
+
+    // ФУНКЦИЯ: ОБНОВЛЕНИЕ ВНЕШНЕГО ВИДА КНОПКИ "ИЗБРАННОЕ"
+    function updateFavoriteButton(recipeId) {
+        let btn = document.getElementById('favorite-btn');  // Находим кнопку на странице
+        if (btn) {  // Если кнопка существует
+            if (isFavorite(recipeId)) {  // Рецепт в избранном
+                btn.innerHTML = '❤️ Удалить из избранного';  // Меняем текст
+                btn.style.background = '#912E1B';  // Меняем цвет (тёмно-красный)
+            } else {  // Рецепт НЕ в избранном
+                btn.innerHTML = '🤍 В избранное';
+                btn.style.background = '#C6440E';  // Меняем цвет (оранжевый)
+            }
+        }
+    }
+
+    // ФУНКЦИЯ: ОТМЕТИТЬ РЕЦЕПТ КАК ПРОЙДЕННЫЙ
+    async function markAsCompleted(recipeId) {
+        const currentUser = getCurrentUser();  // Проверяем авторизацию
+        
+        if (!currentUser) {  // Если не авторизован
+            showMessage('Войдите в аккаунт, чтобы отметить рецепт', true);
+            setTimeout(() => window.location.href = 'login.html', 1500);
+            return;
+        }
+        
+        const success = await markRecipeAsCompleted(recipeId);  // Отправляем запрос на сервер
+        if (success) {  // Если успешно
+            showMessage('Рецепт отмечен как пройденный!');
+            updateCompletedButton(recipeId);  // Обновляем кнопку
+        } else {
+            showMessage('Вы уже отмечали этот рецепт', false);  // Уведомление, что уже отмечали
+        }
+    }
+
+    // ФУНКЦИЯ: ПРОВЕРКА - ОТМЕЧЕН ЛИ РЕЦЕПТ КАК ПРОЙДЕННЫЙ
+    async function isRecipeCompleted(recipeId) {
+        const completed = await getCompletedRecipes();  // Получаем список пройденных рецептов с сервера
+        return completed.includes(recipeId);  // Проверяем, есть ли ID в этом списке
+    }
+
+    // ФУНКЦИЯ: ОБНОВЛЕНИЕ ВНЕШНЕГО ВИДА КНОПКИ "ПРОЙДЕН"
+    async function updateCompletedButton(recipeId) {
+        let btn = document.getElementById('completed-btn');  // Находим кнопку
+        if (btn && await isRecipeCompleted(recipeId)) {  // Если кнопка существует И рецепт пройден
+            btn.innerHTML = 'Пройден';  // Меняем текст
+            btn.disabled = true;  // Деактивируем кнопку (нельзя нажать снова)
+            btn.style.opacity = '0.6';  // Делаем полупрозрачной
+            btn.style.cursor = 'default';  // Меняем курсор на стандартный
+        }
+    }
+
+    // ГЛАВНАЯ ФУНКЦИЯ: ОТРИСОВКА СТРАНИЦЫ РЕЦЕПТА 
+    async function renderRecipe() {
+        await loadFavorites();  // Сначала загружаем избранное
+        
+        let recipeId = getRecipeId();  // Получаем ID рецепта из URL
+        let recipe = recipes.find(r => r.id === recipeId);  // Ищем рецепт в глобальном массиве recipes
+        let container = document.getElementById('recipe-container');  // Контейнер для содержимого
+        
+        // СЛУЧАЙ: РЕЦЕПТ НЕ НАЙДЕН
+        if (!recipe) {
+            container.innerHTML = `<div class="recipe-not-found"><h2>Рецепт не найден</h2><a href="catalog.html">Вернуться в каталог</a></div>`;
+            return;
+        }
+        
+        // СЛУЧАЙ: РЕЦЕПТ НАЙДЕН 
+        let isFav = isFavorite(recipe.id);           // В избранном?
+        let isCompleted = await isRecipeCompleted(recipe.id);  // Пройден?
+        
+        // Отрисовываем HTML страницы
+        container.innerHTML = `
+            <div class="recipe-content" style="max-width: 1200px; margin: 40px auto; padding: 0 20px;">
+                <!-- Ссылка "Назад" -->
+                <a href="catalog.html" class="back-link" style="display: inline-block; margin-bottom: 30px; color: #C6440E; text-decoration: none;">← Назад к рецептам</a>
+                
+                <!-- Основной блок: изображение + информация -->
+                <div style="display: flex; gap: 40px; flex-wrap: wrap;">
+                    <!-- Левая колонка: фото -->
+                    <div style="flex: 1; min-width: 300px;">
+                        <img src="${recipe.image}" alt="${recipe.name}" style="width: 100%; border-radius: 30px;">
+                        ${recipe.badge ? `<div class="badge">${recipe.badge}</div>` : ''}  <!-- Бейдж (если есть) -->
+                    </div>
+                    
+                    <!-- Правая колонка: название, описание, кнопки -->
+                    <div style="flex: 2;">
+                        <h1 style="color: #8F2D1C; font-size: 48px;">${recipe.name}</h1>
+                        <p style="color: #5A3E2E; font-size: 18px;">${recipe.description}</p>
+                        
+                        <!-- Кнопки действий -->
+                        <div style="display: flex; gap: 15px; flex-wrap: wrap;">
+                            <button id="favorite-btn" style="background: ${isFav ? '#912E1B' : '#C6440E'}; color: white; padding: 12px 24px; border-radius: 40px; border: none; cursor: pointer;">
+                                ${isFav ? '❤️ Удалить из избранного' : '🤍 В избранное'}
+                            </button>
+                            <button id="completed-btn" style="background: ${isCompleted ? '#2C7A3E' : '#FFD966'}; color: ${isCompleted ? 'white' : '#5A3E2E'}; padding: 12px 24px; border-radius: 40px; border: none; cursor: pointer;" ${isCompleted ? 'disabled' : ''}>
+                                ${isCompleted ? 'Пройден' : 'Отметить как пройденный'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Блок с ингредиентами -->
+                <div style="margin-top: 40px;">
+                    <h2 style="color: #8F2D1C;">Ингредиенты</h2>
+                    <ul style="color: #5A3E2E; font-size: 18px;">${recipe.ingredients.map(i => `<li>${i}</li>`).join('')}</ul>
+                </div>
+
+                <!-- Блок с шагами приготовления -->
+                <div style="margin-top: 40px;">
+                    <h2 style="color: #8F2D1C;">Приготовление</h2>
+                    <ol style="color: #5A3E2E; font-size: 18px;">${recipe.steps.map(s => `<li>${s}</li>`).join('')}</ol>
+                </div>
+            </div>
+        `;
+        
+        // НАВЕШИВАЕМ ОБРАБОТЧИКИ НА КНОПКИ
+        document.getElementById('favorite-btn')?.addEventListener('click', () => toggleFavorite(recipe.id));    // Кнопка "Избранное"
+        document.getElementById('completed-btn')?.addEventListener('click', () => markAsCompleted(recipe.id));  // Кнопка "Пройден"
+    }
+
+    // ЗАПУСК ПРИ ЗАГРУЗКЕ СТРАНИЦЫ
+    document.addEventListener('DOMContentLoaded', () => {
+        renderRecipe();  // Загружаем и отображаем рецепт
+    });
+    </script>
+</body>
+</html>

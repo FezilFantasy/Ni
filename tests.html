@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Тест: Подбери рецепт по продуктам - Русский очаг</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="recipes.js"></script>
+</head>
+<body>
+    <nav class="navigation">
+        <div class="link-info">
+            <a href="index.html" class="logo-link">
+                <img src="лого.png" alt="Русский очаг" class="logo-img">
+            </a>
+        </div>
+        <div class="navigation-links">
+            <a href="catalog.html">Каталог рецептов</a>
+            <a href="history.html">Истории происхождения рецептов</a>
+            <a href="favorites.html">Избранное</a>
+            <a href="login.html" id="authLink">Вход</a>
+        </div>
+    </nav>
+
+    <main>
+        <section class="hero">
+            <h1>Подбери рецепт по продуктам</h1>
+            <p>Выберите продукты, которые у вас есть, и мы найдем подходящие рецепты!</p>
+        </section>
+
+        <div class="test-container" style="max-width: 1200px; margin: 0 auto; padding: 20px;">
+            <div class="search-products" style="margin-bottom: 30px;">
+                <input type="text" id="product-search" placeholder="Поиск продуктов..." style="width: 100%; padding: 15px; font-size: 16px; border: 1px solid #E8DCC8; border-radius: 50px; outline: none;">
+            </div>
+
+            <div class="selected-products" style="margin-bottom: 30px;">
+                <h3 style="color: #8F2D1C; margin-bottom: 15px;">Выбранные продукты:</h3>
+                <div id="selected-products-list" style="display: flex; flex-wrap: wrap; gap: 10px;"></div>
+            </div>
+
+            <div class="available-products" style="margin-bottom: 40px;">
+                <h3 style="color: #8F2D1C; margin-bottom: 15px;">Все продукты:</h3>
+                <div id="products-grid" style="display: flex; flex-wrap: wrap; gap: 10px;"></div>
+            </div>
+
+            <div class="results-count" id="resultCount" style="text-align: center; margin-bottom: 20px;"></div>
+            <div id="recipes-results" class="products-grid"></div>
+        </div>
+    </main>
+
+    <footer class="footer">
+        <div class="footer-contacts">
+            <div class="footer-col">
+                <h2>Русский очаг</h2>
+                <p>Ваш надежный помощник в приготовлении русской кухни!</p>
+            </div>
+        </div>
+        <div class="footer-col">
+            <h2>Контакты</h2>
+            <ul class="footer-info">
+                <li>Номер телефона: 8(841)255-19-23</li>
+                <li>Электронная почта: russianochag@mail.ru</li>
+                <li>Адрес: г. Пенза, ул. Пушкина, д. 2</li>
+                <li>Режим работы: пн-вс: 9:00 - 21:00</li>
+            </ul>
+        </div>
+        
+        <div class="footer-col">
+            <h3>Подписка</h3>
+            <p>Будьте в курсе новых рецептов от топовых поваров!</p>
+            <form class="footer-subscride" id="subscrideForm">
+                <input type="email" placeholder="Ваш email" required>
+                <button type="submit">Подписаться</button>
+            </form>
+            <p class="subscride-note">Подписываясь, вы соглашаетесь с условиями</p>
+        </div>
+        <div class="footer-bottom">
+            <div class="footer-bottom-content"></div>
+            <p>&copy; 2026 Русский очаг. Все права защищены.</p>
+        </div>
+    </footer>
+
+    <script src="validation.js"></script>
+    <script src="utils.js"></script>
+
+    <script>
+    // ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ-
+    let selectedProducts = [];    // Массив выбранных пользователем продуктов
+    let allProducts = [];         // Массив всех уникальных продуктов из всех рецептов
+
+    // ФУНКЦИЯ: ИЗВЛЕЧЕНИЕ ВСЕХ ПРОДУКТОВ ИЗ РЕЦЕПТОВ
+    // Проходит по всем рецептам и собирает уникальные названия продуктов
+    function extractAllProducts() {
+        let productsSet = new Set();  // Используем Set для автоматического удаления дубликатов
+        
+        recipes.forEach(recipe => {   // Перебираем все рецепты
+            recipe.ingredients.forEach(ing => {   // Перебираем ингредиенты каждого рецепта
+                // Обработка строки ингредиента:
+                // Пример: "Лук репчатый - 2 шт" → "лук репчатый"
+                let productName = ing.split(' -')[0]    // Берём часть до " -"
+                            .split(',')[0]           // Берём часть до запятой
+                            .toLowerCase()           // Приводим к нижнему регистру
+                            .trim();                 // Удаляем пробелы по краям
+                productsSet.add(productName);  // Добавляем в Set (дубликаты не добавятся)
+            });
+        });
+        
+        // Преобразуем Set в массив и сортируем по алфавиту
+        allProducts = Array.from(productsSet).sort();
+    }
+
+    // ФУНКЦИЯ: ОТРИСОВКА СЕТКИ ПРОДУКТОВ (ЧИПСОВ)
+    // filter - текст поиска (показывает только продукты, содержащие этот текст)
+    function renderProductsGrid(filter = '') {
+        // Фильтруем продукты: оставляем только те, которые содержат текст поиска
+        let filtered = allProducts.filter(p => p.includes(filter.toLowerCase()));
+        
+        let container = document.getElementById('products-grid');  // Контейнер для чипсов
+        
+        // Отрисовываем каждый продукт в виде чипса (кнопки-тега)
+        container.innerHTML = filtered.map(product => `
+            <div class="product-chip" data-product="${product}" 
+                style="padding: 10px 20px; 
+                        background: ${selectedProducts.includes(product) ? '#C6440E' : 'white'}; 
+                        border: 1px solid #E8DCC8; 
+                        border-radius: 40px; 
+                        cursor: pointer; 
+                        color: ${selectedProducts.includes(product) ? 'white' : '#5A3E2E'}; 
+                        transition: all 0.3s;">
+                ${product}
+            </div>
+        `).join('');  // join('') превращает массив в одну строку HTML
+
+        // НАВЕШИВАЕМ ОБРАБОТЧИКИ НА КАЖДЫЙ ЧИПС
+        document.querySelectorAll('.product-chip').forEach(chip => {
+            chip.addEventListener('click', () => {
+                let product = chip.dataset.product;  // Получаем название продукта из атрибута data-product
+                
+                // Если продукт уже выбран - удаляем, иначе - добавляем
+                if (selectedProducts.includes(product)) {
+                    selectedProducts = selectedProducts.filter(p => p !== product);  // Удаляем
+                } else {
+                    selectedProducts.push(product);  // Добавляем
+                }
+                
+                // Перерисовываем всё с новыми данными
+                renderProductsGrid(document.getElementById('product-search').value);  // Обновляем сетку продуктов
+                renderSelectedProducts();          // Обновляем список выбранных продуктов
+                findRecipesByProducts();            // Ищем рецепты по выбранным продуктам
+            });
+        });
+    }
+
+    // ФУНКЦИЯ: ОТРИСОВКА СПИСКА ВЫБРАННЫХ ПРОДУКТОВ
+    function renderSelectedProducts() {
+        let container = document.getElementById('selected-products-list');
+        
+        // Если ничего не выбрано - показываем подсказку
+        if (selectedProducts.length === 0) {
+            container.innerHTML = '<p style="color: #CABBAB;">Выберите продукты из списка выше...</p>';
+        } else {
+            // Отображаем каждый выбранный продукт в виде тега с крестиком для удаления
+            container.innerHTML = selectedProducts.map(product => `
+                <div style="background: #C6440E; color: white; padding: 8px 16px; border-radius: 40px; display: inline-flex; align-items: center; gap: 8px;">
+                    ${product}
+                    <span onclick="removeProduct('${product}')" style="cursor: pointer; font-size: 18px;">✕</span>
+                </div>
+            `).join('');
+        }
+    }
+
+    // ФУНКЦИЯ: УДАЛЕНИЕ ПРОДУКТА ИЗ ВЫБРАННОГО
+    function removeProduct(product) {
+        // Удаляем продукт из массива
+        selectedProducts = selectedProducts.filter(p => p !== product);
+        
+        // Обновляем все интерфейсы
+        renderProductsGrid(document.getElementById('product-search').value);  // Обновляем сетку
+        renderSelectedProducts();          // Обновляем список выбранных
+        findRecipesByProducts();            // Переищем рецепты
+    }
+
+    // ФУНКЦИЯ: ПОИСК РЕЦЕПТОВ ПО ВЫБРАННЫМ ПРОДУКТАМ
+    function findRecipesByProducts() {
+        // Если ничего не выбрано - показываем сообщение
+        if (selectedProducts.length === 0) {
+            document.getElementById('resultCount').innerHTML = '';  // Очищаем счётчик
+            document.getElementById('recipes-results').innerHTML = 
+                '<div style="text-align: center; padding: 60px; color: #CABBAB;">Выберите продукты, чтобы найти рецепты</div>';
+            return;
+        }
+
+        // ФИЛЬТРАЦИЯ: ищем рецепты, содержащие хотя бы один выбранный продукт
+        let matchedRecipes = recipes.filter(recipe => {
+            // Получаем все продукты из рецепта (очищенные названия)
+            let recipeProducts = recipe.ingredients.map(i => 
+                i.split(' -')[0].split(',')[0].toLowerCase().trim()
+            );
+            
+            // Сколько выбранных продуктов есть в этом рецепте
+            let matchCount = selectedProducts.filter(sp => recipeProducts.includes(sp)).length;
+            
+            // Возвращаем true, если есть хотя бы одно совпадение
+            return matchCount >= 1;
+        });
+
+        // СОРТИРОВКА: чем больше совпадений, тем выше в списке
+        matchedRecipes.sort((a, b) => {
+            // Вычисляем количество совпадений для рецепта A
+            let aMatch = selectedProducts.filter(sp => 
+                a.ingredients.map(i => i.split(' -')[0].split(',')[0].toLowerCase().trim()).includes(sp)
+            ).length;
+            
+            // Вычисляем количество совпадений для рецепта B
+            let bMatch = selectedProducts.filter(sp => 
+                b.ingredients.map(i => i.split(' -')[0].split(',')[0].toLowerCase().trim()).includes(sp)
+            ).length;
+            
+            return bMatch - aMatch;  // Сортировка по убыванию (больше совпадений - выше)
+        });
+
+        // ОТОБРАЖЕНИЕ РЕЗУЛЬТАТОВ
+        let resultCount = document.getElementById('resultCount');
+        
+        if (matchedRecipes.length === 0) {
+            // НЕТ РЕЦЕПТОВ
+            resultCount.innerHTML = '<p style="color: #8F2D1C;">Нет рецептов с выбранными продуктами</p>';
+            document.getElementById('recipes-results').innerHTML = 
+                '<div style="text-align: center; padding: 60px; color: #CABBAB;">Попробуйте выбрать другие продукты</div>';
+        } else {
+            // ЕСТЬ РЕЦЕПТЫ - показываем их
+            resultCount.innerHTML = `<p style="color: #8F2D1C;">Найдено рецептов: ${matchedRecipes.length}</p>`;
+            
+            let container = document.getElementById('recipes-results');
+            container.innerHTML = matchedRecipes.map(recipe => `
+                <div class="recipe-card">
+                    <img src="${recipe.image}" alt="${recipe.name}">
+                    <h3>${recipe.name}</h3>
+                    <p>${recipe.description.substring(0, 100)}...</p>  <!-- Первые 100 символов описания -->
+                    ${recipe.badge ? `<span class="badge">${recipe.badge}</span>` : ''}  <!-- Бейдж если есть -->
+                    <div style="padding: 0 15px 15px;">
+                        <button class="btn-recipe" 
+                                onclick="window.location.href='recipe.html?id=${recipe.id}'" 
+                                style="background: #C6440E; color: white; padding: 8px 16px; border-radius: 30px; border: none; cursor: pointer; width: 100%;">
+                            Смотреть рецепт
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+    }
+
+    // ЗАПУСК ВСЕХ ФУНКЦИЙ ПРИ ЗАГРУЗКЕ
+    extractAllProducts();      // Извлекаем все продукты из рецептов
+    renderProductsGrid();      // Отрисовываем сетку продуктов
+    renderSelectedProducts();  // Отрисовываем список выбранных (пустой)
+
+    // НАСТРОЙКА ПОИСКА ПО ПРОДУКТАМ
+    document.getElementById('product-search').addEventListener('input', (e) => {
+        renderProductsGrid(e.target.value);  // При вводе текста фильтруем продукты
+    });
+    </script>
+</body>
+</html>

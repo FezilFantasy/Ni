@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Регистрация - Русский очаг</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <nav class="navigation">
+        <div class="link-infp">
+            <a href="index.html" class="logo-link">
+                <img src="лого.png" alt="Русский очаг" class="logo-img">
+            </a>
+        </div>
+        <div class="navigation-links">
+            <a href="catalog.html">Каталог рецептов</a>
+            <a href="history.html">Истории происхождения рецептов</a>
+            <a href="favorites.html">Избранное</a>
+            <a href="login.html" id="authLink">Вход</a>
+        </div>
+    </nav>
+
+    <div class="entrance">
+        <div class="entrance-hero">
+            <h1>Создать аккаунт</h1>
+            <p>Присоединяйтесь к Русскому очагу!</p>
+        </div>
+    </div>
+
+    <form id="registerForm" class="register-form">
+        <div class="form-group">
+            <label>ФИО</label>
+            <input type="text" id="fullName" placeholder="Иванов Иван Иванович">
+        </div>
+
+        <div class="form-group">
+            <label>Email</label>
+            <input type="email" id="email" placeholder="example@mail.ru">
+        </div>
+
+        <div class="form-group">
+            <label>Пароль</label>
+            <input type="password" id="password" placeholder="********">
+        </div>
+
+        <div class="form-group">
+            <label>Подтвердите пароль</label>
+            <input type="password" id="confirmPassword" placeholder="Подтвердите пароль">
+        </div>
+
+        <div class="checkbox-group">
+            <label class="checkbox-label">
+                <input type="checkbox" id="conditions">Я согласен с условиями использования</label>
+        </div>
+
+        <button type="submit" class="btn-third">Создать аккаунт</button>
+    </form>
+
+    <div class="entrance-footer">
+        <p>Есть аккаунт? <a href="login.html">Войдите</a></p>
+    </div>
+
+    <div id="messageToast" class="message-toast"></div>
+
+   <script src="validation.js"></script>
+   <script src="utils.js"></script>
+   <script>
+    // ОБРАБОТЧИК СОБЫТИЯ ОТПРАВКИ ФОРМЫ РЕГИСТРАЦИИ
+
+    // Находим форму регистрации по её ID и добавляем обработчик события 'submit'
+    // 'submit' - событие, которое происходит при нажатии кнопки отправки формы
+    document.getElementById('registerForm').addEventListener('submit', async function(e) {
+        
+        // e.preventDefault() - ОТМЕНА СТАНДАРТНОГО ПОВЕДЕНИЯ
+        // Обычно при отправке формы страница перезагружается
+        // Эта команда отключает перезагрузку, чтобы мы могли обработать данные сами
+        e.preventDefault();
+        
+        // СБОР ДАННЫХ ИЗ ПОЛЕЙ ФОРМЫ
+        
+        // Полное имя пользователя
+        // .value - получает текст из поля ввода
+        // .trim() - удаляет лишние пробелы в начале и конце строки
+        const fullName = document.getElementById('fullName').value.trim();
+        
+        // Email пользователя
+        // Тоже обрезаем пробелы (email не может начинаться или заканчиваться пробелом)
+        const email = document.getElementById('email').value.trim();
+        
+        // Пароль
+        // НЕ используем .trim(), так как пробелы могут быть частью пароля
+        const password = document.getElementById('password').value;
+        
+        // Подтверждение пароля (пользователь вводит пароль второй раз для проверки)
+        const confirmPassword = document.getElementById('confirmPassword').value;
+        
+        // Согласие с условиями (чекбокс)
+        // .checked возвращает true (галочка стоит) или false (галочки нет)
+        const conditions = document.getElementById('conditions').checked;
+    
+        // ОТПРАВКА ДАННЫХ НА СЕРВЕР
+        
+        // Вызываем функцию registerUser() (она определена в другом файле, например auth.js)
+        // await - ждём, пока функция завершится (она асинхронная, т.к. отправляет запрос на сервер)
+        // Передаём все собранные данные для регистрации
+        const result = await registerUser(fullName, email, password, confirmPassword, conditions);
+        
+        // ОБРАБОТКА РЕЗУЛЬТАТА
+        
+        // Проверяем, успешно ли прошла регистрация
+        if (result.success) {
+            
+            // Показываем зелёное уведомление об успехе
+            // showMessage() - функция для всплывающих уведомлений
+            showMessage('Регистрация прошла успешно!');
+            
+            // Устанавливаем таймер на перенаправление
+            // setTimeout(функция, задержка_в_миллисекундах)
+            setTimeout(() => {
+                // Через 1500 мс (1.5 секунды) перенаправляем пользователя на страницу входа
+                window.location.href = 'login.html';
+            }, 1500);
+            
+        } else {
+            
+            // Показываем красное уведомление с текстом ошибки
+            // result.message содержит описание проблемы (например, "Email уже используется")
+            // Второй параметр true означает, что это сообщение об ошибке (красный фон)
+            showMessage(result.message, true);
+        }
+    });
+    </script>
+</body>
+</html>

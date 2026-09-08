@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Русский очаг - Профиль</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="recipes.js"></script>
+</head>
+<body>
+    <nav class="navigation">
+        <div class="link-info">
+            <a href="index.html" class="logo-link">
+                <img src="лого.png" alt="Русский очаг" class="logo-img">
+            </a>
+        </div>
+        <div class="navigation-links">
+            <a href="catalog.html">Каталог рецептов</a>
+            <a href="history.html">Истории происхождения рецептов</a>
+            <a href="favorites.html">Избранное</a>
+            <a href="login.html" id="authLink">Вход</a>
+        </div>
+    </nav>
+
+    <main class="profile-page" id="profilePage"></main>
+
+    <div id="messageToast" class="message-toast"></div>
+
+    <script src="validation.js"></script>
+    <script src="utils.js"></script>
+    <script>
+    // ФУНКЦИЯ: ПОЛУЧЕНИЕ КОЛИЧЕСТВА ИЗБРАННЫХ РЕЦЕПТОВ
+    async function getFavoritesCount() {
+        // Получаем текущего авторизованного пользователя (из localStorage)
+        const currentUser = getCurrentUser();
+        
+        // Если пользователь не авторизован - возвращаем 0
+        if (!currentUser) return 0;
+        
+        // Запрашиваем список избранных рецептов с сервера
+        const favorites = await getFavorites();
+        
+        // Возвращаем количество рецептов в избранном
+        return favorites.length;
+    }
+
+    // ФУНКЦИЯ: ПОЛУЧЕНИЕ КОЛИЧЕСТВА ПРОЙДЕННЫХ РЕЦЕПТОВ
+    async function getCompletedCount() {
+        // Получаем текущего пользователя
+        const currentUser = getCurrentUser();
+        
+        // Если не авторизован - возвращаем 0
+        if (!currentUser) return 0;
+        
+        // Запрашиваем список пройденных (приготовленных) рецептов с сервера
+        const completed = await getCompletedRecipes();
+        
+        // Возвращаем количество
+        return completed.length;
+    }
+
+    // ГЛАВНАЯ ФУНКЦИЯ: ОТРИСОВКА СТРАНИЦЫ ПРОФИЛЯ
+    async function renderProfile() {
+        // Получаем данные текущего пользователя
+        const currentUser = getCurrentUser();
+        
+        // Находим контейнер для профиля на странице
+        const profilePage = document.getElementById('profilePage');
+        
+        //  СЛУЧАЙ 1: ПОЛЬЗОВАТЕЛЬ НЕ АВТОРИЗОВАН 
+        if (!currentUser) {
+            // Показываем сообщение с предложением войти
+            profilePage.innerHTML = `
+            <div class="profile-card" style="text-align: center; padding: 3rem;">
+                <h2>Вы не авторизованы</h2>
+                <p style="margin: 1rem 0;">Пожалуйста, войдите в аккаунт</p>
+                <a href="login.html" class="btn-first" style="display: inline-block;">Войти</a>
+            </div>
+            `;
+            return;  // Выходим из функции (дальше не выполняем)
+        }
+        
+        // СЛУЧАЙ 2: ПОЛЬЗОВАТЕЛЬ АВТОРИЗОВАН
+        
+        // Получаем статистику (количества)
+        const favoritesCount = await getFavoritesCount();    // Сколько рецептов в избранном
+        const completedCount = await getCompletedCount();    // Сколько рецептов приготовлено
+        
+        // Отрисовываем HTML профиля с данными пользователя
+        profilePage.innerHTML = `
+        <div class="profile-container">
+            <div class="profile-card">
+                <!-- Шапка профиля -->
+                <div class="profile-header">
+                    <h1 class="profile-title">Профиль</h1>
+                    <div class="profile-welcome">
+                        <span class="user-name">${escapeHtml(currentUser.fullName)}</span>
+                        <span class="welcome-text">Добро пожаловать в Русский очаг!</span>
+                    </div>
+                </div>
+                
+                <div class="profile-body">
+                    <!-- Секция с информацией о пользователе -->
+                    <div class="profile-info-section">
+                        <div class="info-list">
+                            <div class="info-item">
+                                <div class="info-label">Email</div>
+                                <div class="info-value">${escapeHtml(currentUser.email)}</div>
+                            </div>
+                            <div class="info-item">
+                                <div class="info-label">Телефон</div>
+                                <div class="info-value">${currentUser.phone ? escapeHtml(currentUser.phone) : 'Не указан'}</div>
+                            </div>
+                        </div>
+                        
+                        <!-- Статистика (карточки с числами) -->
+                        <div class="stats-grid">
+                            <div class="stat-block">
+                                <div class="stat-number">${completedCount}</div>
+                                <div class="stat-label">Пройденные рецепты</div>
+                            </div>
+                            
+                            <div class="stat-block">
+                                <div class="stat-number">${favoritesCount}</div>
+                                <div class="stat-label">Избранных рецептов</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Секция с кнопками действий -->
+                    <div class="profile-actions-section">
+                        <div class="actions-buttons">
+                            <button class="action-btn logout-btn" id="logoutBtn">
+                                <span class="btn-icon">Выйти из аккаунта</span>
+                            </button>
+                            <button class="action-btn edit-btn" id="editProfileBtn">
+                                <span class="btn-icon">Редактировать профиль</span>
+                            </button>
+                            <button class="action-btn password-btn" id="changePasswordBtn">
+                                <span class="btn-icon">Сменить пароль</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        `;
+
+        // НАСТРОЙКА КНОПКИ "ВЫЙТИ"
+        document.getElementById('logoutBtn')?.addEventListener('click', () => {
+            // Показываем подтверждение перед выходом
+            if (confirm('Вы уверены, что хотите выйти из аккаунта?')) {
+                logoutUser();                              // Выход из системы (удаляет токен)
+                showMessage('Вы вышли из системы');        // Показываем уведомление
+                setTimeout(() => {
+                    window.location.href = 'index.html';   // Переход на главную через 0.5 сек
+                }, 500);
+            }
+        });
+        
+        // НАСТРОЙКА КНОПКИ "РЕДАКТИРОВАТЬ ПРОФИЛЬ" (изменение телефона)
+        document.getElementById('editProfileBtn')?.addEventListener('click', async () => {
+            // Получаем актуальные данные пользователя
+            const currentUserData = getCurrentUser();
+            
+            // Открываем диалоговое окно для ввода номера телефона
+            const newPhone = prompt('Введите номер телефона:', currentUserData?.phone || '');
+            
+            // Если пользователь ввёл что-то (не нажал "Отмена")
+            if (newPhone !== null) {
+                // Отправляем запрос на обновление телефона
+                const result = await updateUserPhone(newPhone);
+                
+                if (result.success) {
+                    await renderProfile();          // Перерисовываем профиль с новыми данными
+                    showMessage('Профиль обновлен!');  // Уведомление об успехе
+                } else {
+                    showMessage(result.message, true);  // Показываем ошибку
+                }
+            }
+        });
+        
+        // НАСТРОЙКА КНОПКИ "СМЕНИТЬ ПАРОЛЬ" 
+        document.getElementById('changePasswordBtn')?.addEventListener('click', async () => {
+            // Открываем диалог для ввода нового пароля
+            const newPassword = prompt('Введите новый пароль (минимум 6 символов):');
+            
+            // Если пароль введён и его длина >= 6 символов
+            if (newPassword !== null && newPassword.length >= 6) {
+                // Отправляем запрос на смену пароля
+                const result = await updateUserPassword(newPassword);
+                
+                // Показываем уведомление (зелёное для успеха, красное для ошибки)
+                showMessage(result.message, result.success ? false : true);
+                
+                // Если пароль успешно изменён
+                if (result.success) {
+                    // Через 1.5 секунды выходим из системы и перенаправляем на страницу входа
+                    setTimeout(() => {
+                        logoutUser();                      // Выходим (требуется повторный вход с новым паролем)
+                        window.location.href = 'login.html';
+                    }, 1500);
+                }
+            } 
+            // Если пользователь ввёл пароль, но он короче 6 символов
+            else if (newPassword !== null) {
+                showMessage('Пароль должен быть не менее 6 символов', true);
+            }
+            // Если пользователь нажал "Отмена" - ничего не делаем
+        });
+    }
+
+    // ФУНКЦИЯ ДЛЯ ПОКАЗА ВСПЛЫВАЮЩИХ УВЕДОМЛЕНИЙ
+    function showMessage(message, isError = false) {
+        // Ищем или создаём элемент уведомления
+        let toast = document.getElementById('messageToast');
+        if (!toast) {
+            toast = document.createElement('div');
+            toast.id = 'messageToast';
+            toast.className = 'message-toast';
+            document.body.appendChild(toast);
+        }
+        
+        // Устанавливаем текст и цвет
+        toast.textContent = message;
+        toast.style.backgroundColor = isError ? '#C6440E' : '#2C7A3E';  // Красный или зелёный
+        toast.classList.add('show');
+        
+        // Скрываем через 2 секунды
+        setTimeout(() => {
+            toast.classList.remove('show');
+        }, 2000);
+    }
+    
+    renderProfile();
+    </script>
+
+
+</body>
+</html>

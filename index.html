@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Русский очаг</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <nav class="navigation">
+        <div class="link-info">
+            <a href="index.html" class="logo-link">
+                <img src="лого.png" alt="Русский очаг" class="logo-img">
+            </a>
+        </div>
+        <div class="navigation-links">
+            <a href="catalog.html">Каталог рецептов</a>
+            <a href="history.html">Истории происхождения рецептов</a>
+            <a href="favorites.html">Избранное</a>
+            <a href="login.html" id="authLink">Вход</a>
+        </div>
+    </nav>
+
+    <main>
+        <section class="hero">
+            <h1>Русская кухня - как дома</h1>
+            <p>Мы предлагаем Вам русскую кухню!</p>
+            
+            <div class="slider-container">
+                <div class="slider">
+                    <img src="щи.png" alt="Щи">
+                    <img src="медовик.png" alt="Медовик">
+                    <img src="окрошка.png" alt="Окрошка">
+                    <img src="селедка под шубой.png" alt="Селедка под шубой">
+                    <img src="мишка на севере.png" alt="Мишка на севере">
+                    <img src="кисель.png" alt="Кисель из смородины">
+                </div>
+                <button class="back-button" type="button"><</button>
+                <button class="next-button" type="button">></button>
+            </div>
+            
+            <div class="hero-buttons">
+                <a href="catalog.html" class="btn-first">Перейти к рецептам</a>
+                <a href="tests.html" class="btn-second">Перейти к тесту</a>
+            </div>
+        </section>
+    </main>
+
+    <footer class="footer">
+        <div class="footer-contacts">
+            <div class="footer-col">
+                <h2>Русский очаг</h2>
+                <p>Ваш надежный помощник в приготовлении русской кухни!</p>
+            </div>
+        </div>
+        <div class="footer-col">
+            <h2>Контакты</h2>
+            <ul class="footer-info">
+                <li>Номер телефона: 8(841)255-19-23</li>
+                <li>Электронная почта: russianochag@mail.ru</li>
+                <li>Адрес: г. Пенза, ул. Пушкина, д. 2</li>
+                <li>Режим работы: пн-вс: 9:00 - 21:00</li>
+            </ul>
+        </div>
+        <div class="footer-col">
+            <h3>Подписка</h3>
+            <p>Будьте в курсе новых рецептов от топовых поваров!</p>
+            <form class="footer-subscride" id="subscribeForm">
+                <input type="email" placeholder="Ваш email" required>
+                <button type="submit">Подписаться</button>
+            </form>
+            <p class="subscride-note">Подписываясь, Вы соглашаетесь с условиями</p>
+        </div>
+        <div class="footer-bottom">
+            <div class="footer-bottom-content"></div>
+            <p>&copy; 2026 Русский очаг. Все права защищены.</p>
+        </div>
+    </footer>
+
+    <script src="validation.js"></script>
+    <script src="utils.js"></script>
+    <script>
+        // слайдер
+        let slider = document.querySelector('.slider');
+        let back = document.querySelector('.back-button');
+        let next = document.querySelector('.next-button');
+    
+        // проверяем, что все элементы существуют
+        if(slider && back && next) { 
+            let allImgs = slider.querySelectorAll('img');
+            let nowIndex = 0;
+            let total = allImgs.length; //кол-во картинок
+        
+            // Функция сдвига слайдера
+            function moveSlide() {
+                // получаем ширину видимой области
+                let containerWidth = document.querySelector('.slider-container').clientWidth;
+                let offset = nowIndex * containerWidth;
+                // сдвигаем слайдер влево на offset пикселей (translateX с минусом)
+                slider.style.transform = 'translateX(-' + offset + 'px)';
+            }
+        
+            back.onclick = function() {
+                nowIndex = nowIndex - 1; // уменьшаем индекс
+                if(nowIndex < 0) nowIndex = total - 1;  // если ушли в начало - переходим в конец
+                moveSlide();
+            }
+        
+            next.onclick = function() {
+                nowIndex = nowIndex + 1; // увеличиваем индекс
+                if(nowIndex >= total) nowIndex = 0; // если ушли за конец - переходим в начало
+                moveSlide();
+            }
+        }
+    </script>
+</body>
+</html>

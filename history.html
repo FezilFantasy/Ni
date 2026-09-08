@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Русский очаг - Истории происхождения рецептов</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="recipes.js"></script>
+</head>
+<body>
+    <nav class="navigation">
+        <div class="link-info">
+            <a href="index.html" class="logo-link">
+                <img src="лого.png" alt="Русский очаг" class="logo-img">
+            </a>
+        </div>
+        <div class="navigation-links">
+            <a href="catalog.html">Каталог рецептов</a>
+            <a href="history.html">Истории происхождения рецептов</a>
+            <a href="favorites.html">Избранное</a>
+            <a href="login.html" id="authLink">Вход</a>
+        </div>
+    </nav>
+
+    <main>
+        <section class="hero">
+            <h1>Истории происхождения рецептов</h1>
+            <p>Узнайте, как появились любимые блюда русской кухни!</p>
+        </section>
+    </main>
+
+    <div class="catalog-controls">
+        <div class="search-box">
+            <input type="text" id="searchHistory" placeholder="Поиск по историям...">
+        </div>
+        
+        <div class="sort-box">
+            <select class="sortSelect" id="sortSelect">
+                <option value="default">Сортировка: по умолчанию</option>
+                <option value="name-asc">Название: А-Я</option>
+                <option value="name-desc">Название: Я-А</option>
+            </select>
+        </div>
+    </div>
+
+    <div class="filters">
+        <div class="filters-box">
+            <div class="filter-chip" data-category="all">Все</div>
+            <div class="filter-chip" data-category="супы">Супы</div>
+            <div class="filter-chip" data-category="салаты">Салаты</div>
+            <div class="filter-chip" data-category="каши">Каши</div>
+            <div class="filter-chip" data-category="пироги">Пироги</div>
+            <div class="filter-chip" data-category="торты">Торты</div>
+            <div class="filter-chip" data-category="напитки">Напитки</div>
+        </div>
+    </div>
+
+    <div class="results-count" id="resultCount"></div>
+    <div id="history-list" class="history-grid"></div>
+
+    <footer class="footer">
+        <div class="footer-contacts">
+            <div class="footer-col">
+                <h2>Русский очаг</h2>
+                <p>Ваш надежный помощник в приготовлении русской кухни!</p>
+            </div>
+        </div>
+        <div class="footer-col">
+            <h2>Контакты</h2>
+            <ul class="footer-info">
+                <li>Номер телефона: 8(841)255-19-23</li>
+                <li>Электронная почта: russianochag@mail.ru</li>
+                <li>Адрес: г. Пенза, ул. Пушкина, д. 2</li>
+                <li>Режим работы: пн-вс: 9:00 - 21:00</li>
+            </ul>
+        </div>
+
+        <div class="footer-col">
+            <h3>Подписка</h3>
+            <p>Будьте в курсе новых рецептов от топовых поваров!</p>
+            <form class="footer-subscride" id="subscribeForm">
+                <input type="email" placeholder="Ваш email" required>
+                <button type="submit">Подписаться</button>
+            </form>
+            <p class="subscride-note">Подписываясь, вы соглашаетесь с условиями</p>
+        </div>
+        <div class="footer-bottom">
+            <div class="footer-bottom-content"></div>
+            <p>&copy; 2026 Русский очаг. Все права защищены.</p>
+        </div>
+    </footer>
+
+    <div id="messageToast" class="message-toast"></div>
+
+    <script src="validation.js"></script>
+    <script src="utils.js"></script>
+    <script>
+        let currentCategory = 'all';
+        let currentSearch = '';
+        let currentSort = 'default';
+        let currentFavorites = [];
+
+        function showMessage(message, isError = false) {
+            // Пытаемся найти существующий элемент уведомления на странице
+            let toast = document.getElementById('messageToast');
+            if (!toast) {
+                // Если элемента нет - создаём его
+                toast = document.createElement('div');
+                toast.id = 'messageToast';
+                toast.className = 'message-toast';
+                document.body.appendChild(toast);
+            }
+            // Устанавливаем текст сообщения
+            toast.textContent = message;
+            // Меняем цвет фона: красный/оранжевый для ошибки, зелёный для успеха
+            toast.style.backgroundColor = isError ? '#C6440E' : '#2C7A3E';
+            // Показываем уведомление (добавляем класс 'show')
+            toast.classList.add('show');
+            // Через 2 секунды скрываем уведомление
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, 2000);
+        }
+
+        async function loadFavorites() {
+            const currentUser = getCurrentUser();
+            if (!currentUser) {
+                currentFavorites = [];
+                return;
+            }
+            
+            try {
+                // Запрашиваем избранное через API
+                const favorites = await getFavorites();
+                // Сохраняем в переменную, убеждаемся что это массив
+                currentFavorites = Array.isArray(favorites) ? favorites : [];
+                console.log('Избранное загружено:', currentFavorites);
+            } catch (error) {
+                console.error('Ошибка загрузки избранного:', error);
+                currentFavorites = [];
+            }
+        }
+
+        async function addToFavoritesAPI(recipeId) {
+            const currentUser = getCurrentUser();
+            if (!currentUser) return false;
+            
+            try {
+                const success = await addToFavorites(recipeId);
+                if (success) {
+                    // Добавляем ID в локальный массив
+                    currentFavorites.push(recipeId);
+                    return true;
+                }
+                return false;
+            } catch (error) {
+                console.error('Ошибка добавления:', error);
+                return false;
+            }
+        }
+        
+        async function removeFromFavoritesAPI(recipeId) {
+            const currentUser = getCurrentUser();
+            if (!currentUser) return false;
+            
+            try {
+                const success = await removeFromFavorites(recipeId);
+                if (success) {
+                    // Удаляем ID из локального массива
+                    currentFavorites = currentFavorites.filter(id => id !== recipeId);
+                    return true;
+                }
+                return false;
+            } catch (error) {
+                console.error('Ошибка удаления:', error);
+                return false;
+            }
+        }
+
+        // ПРОВЕРКА: НАХОДИТСЯ ЛИ РЕЦЕПТ В ИЗБРАННОМ
+        function isFavorite(recipeId) {
+            return currentFavorites.includes(recipeId);
+        }
+
+        async function renderHistory() {
+            let filtered = [...historyRecipes];
+
+            if (currentCategory !== 'all') {
+                filtered = filtered.filter(recipe => recipe.category === currentCategory);
+            }
+
+            if (currentSearch) {
+                filtered = filtered.filter(recipe => 
+                    recipe.name.toLowerCase().includes(currentSearch.toLowerCase())
+                );
+            }
+
+            switch (currentSort) {
+                case 'name-asc':
+                    filtered.sort((a, b) => a.name.localeCompare(b.name));
+                    break;
+                case 'name-desc':
+                    filtered.sort((a, b) => b.name.localeCompare(a.name));
+                    break;
+                default:
+                    filtered.sort((a, b) => a.id - b.id);
+            }
+
+            const container = document.getElementById('history-list');
+            if (container) {
+                container.innerHTML = filtered.map(recipe => {
+                    const favStatus = isFavorite(recipe.id);
+                    return `
+                    <div class="history-card">
+                        <img src="${recipe.image}" alt="${recipe.name}" class="history-card-img">
+                        <div class="history-card-content">
+                            <h3>${escapeHtml(recipe.name)}</h3>
+                            <span class="history-category">${recipe.category}</span>
+                            <div class="history-era">${recipe.date}</div>
+                            <p class="history-story">${escapeHtml(recipe.originStory)}</p>
+                            <div style="display: flex; gap: 10px; margin-top: 15px; padding-top: 15px; border-top: 1px solid #E8DCC8;">
+                                <a href="recipe.html?id=${recipe.id}" class="history-recipe-btn" style="background: linear-gradient(90deg, #C6440E 0%, #DC5718 100%); border-radius: 30px; padding: 8px 16px; font-weight: 600; font-size: 14px; color: #F6E2CF; text-decoration: none; text-align: center; flex: 1; display: flex; align-items: center; justify-content: center;">Рецепт</a>
+                                <button class="history-fav-btn" data-id="${recipe.id}" style="background: none; border: none; font-size: 24px; cursor: pointer; color: ${favStatus ? '#C6440E' : '#CABBAB'}; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border-radius: 50%;">${favStatus ? '❤️' : '🤍'}</button>
+                            </div>
+                        </div>
+                    </div>
+                    `;
+                }).join(''); // join('') соединяет массив строк в одну строку
+            }
+
+            // НАВЕШИВАЕМ ОБРАБОТЧИКИ НА КНОПКИ "ИЗБРАННОЕ"
+            document.querySelectorAll('.history-fav-btn').forEach(btn => {
+                btn.addEventListener('click', async function(e) {
+                    e.preventDefault(); // Отменяем стандартное поведение
+                    const recipeId = parseInt(this.dataset.id); // Получаем ID рецепта из data-id атрибута
+                    const currentUser = getCurrentUser();
+                    
+                    if (!currentUser) {
+                        showMessage('Войдите в аккаунт, чтобы добавить в избранное', true);
+                        setTimeout(() => {
+                            window.location.href = 'login.html';
+                        }, 1000);
+                        return;
+                    }
+                    
+                    if (isFavorite(recipeId)) {
+                        const success = await removeFromFavoritesAPI(recipeId);
+                        if (success) {
+                            showMessage('Рецепт удалён из избранного', false);
+                            this.innerHTML = '🤍';
+                            this.style.color = '#CABBAB';
+                            renderHistory();
+                        }
+                    } else {
+                        const success = await addToFavoritesAPI(recipeId);
+                        if (success) {
+                            showMessage('Рецепт добавлен в избранное', false);
+                            this.innerHTML = '❤️';
+                            this.style.color = '#C6440E';
+                            renderHistory();
+                        }
+                    }
+                });
+            });
+
+            const resultCount = document.getElementById('resultCount');
+            if (resultCount) {
+                resultCount.textContent = `Найдено историй: ${filtered.length}`;
+            }
+        }
+
+        // ИНИЦИАЛИЗАЦИЯ ПРИ ЗАГРУЗКЕ СТРАНИЦЫ
+        document.addEventListener('DOMContentLoaded', async () => {
+            // Загружаем избранное пользователя
+            await loadFavorites();
+            await renderHistory();
+
+             // НАСТРАИВАЕМ ОБРАБОТЧИКИ ПОЛЯ ПОИСКА
+            const searchInput = document.getElementById('searchHistory');
+            if (searchInput) {
+                searchInput.addEventListener('input', (e) => {
+                    currentSearch = e.target.value; // Обновляем текст поиска
+                    renderHistory();
+                });
+            }
+
+              // НАСТРАИВАЕМ ОБРАБОТЧИК ВЫПАДАЮЩЕГО СПИСКА СОРТИРОВКИ
+            const sortSelect = document.getElementById('sortSelect');
+            if (sortSelect) {
+                sortSelect.addEventListener('change', (e) => {
+                    currentSort = e.target.value;
+                    renderHistory();
+                });
+            }
+
+            document.querySelectorAll('.filter-chip').forEach(chip => {
+                chip.addEventListener('click', () => {
+                    document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+                    chip.classList.add('active');
+                    currentCategory = chip.dataset.category;
+                    renderHistory();
+                });
+            });
+
+            document.querySelector('.filter-chip[data-category="all"]')?.classList.add('active');
+        });
+    </script>
+</body>
+</html>

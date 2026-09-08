@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Избранное - Русский очаг</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="recipes.js"></script>
+</head>
+    <nav class="navigation">
+        <div class="link-info">
+            <a href="index.html" class="logo-link">
+                <img src="лого.png" alt="Русский очаг" class="logo-img">
+            </a>
+        </div>
+        <div class="navigation-links">
+            <a href="catalog.html">Каталог рецептов</a>
+            <a href="history.html">Истории происхождения рецептов</a>
+            <a href="favorites.html">Избранное</a>
+            <a href="login.html" id="authLink">Вход</a>
+        </div>
+    </nav>
+
+    <main>
+        <section class="hero">
+            <h1>Избранное</h1>
+            <p>Здесь вы можете посмотреть рецепты, которые добавили в избранное.</p>
+        </section>
+    </main>
+
+    <div class="catalog-controls">
+        <div class="search-box">
+            <input type="text" id="searchInput" placeholder="Поиск рецептов...">
+        </div>
+        <div class="sort-box">
+            <select class="sortSelect" id="sortSelect">
+                <option value="default">Сортировка: по умолчанию</option>
+                <option value="name-asc">Название: А-Я</option>
+                <option value="name-desc">Название: Я-А</option>
+                <option value="category">По категории</option>
+            </select>
+        </div>
+    </div>
+
+    <div class="filters">
+        <div class="filters-box">
+            <div class="filter-chip" data-category="all">Все</div>
+            <div class="filter-chip" data-category="салаты">Салаты</div>
+            <div class="filter-chip" data-category="супы">Супы</div>
+            <div class="filter-chip" data-category="каши">Каши</div>
+            <div class="filter-chip" data-category="пироги">Пироги</div>
+            <div class="filter-chip" data-category="торты">Торты</div>
+            <div class="filter-chip" data-category="напитки">Напитки</div>
+        </div>
+    </div>
+
+    <div class="results-count" id="resultCount"></div>
+    <div id="favoritesList" class="favorites-grid"></div>
+
+    <footer class="footer">
+        <div class="footer-contacts">
+            <div class="footer-col">
+                <h2>Русский очаг</h2>
+                <p>Ваш надежный помощник в приготовлении русской кухни!</p>
+            </div>
+        </div>
+        <div class="footer-col">
+            <h2>Контакты</h2>
+            <ul class="footer-info">
+                <li>Номер телефона: 8(841)255-19-23</li>
+                <li>Электронная почта: russianochag@mail.ru</li>
+                <li>Адрес: г. Пенза, ул. Пушкина, д. 2</li>
+                <li>Режим работы: пн-вс: 9:00 - 21:00</li>
+            </ul>
+        </div>
+
+        <div class="footer-col">
+            <h3>Подписка</h3>
+            <p>Будьте в курсе новых рецептов от топовых поваров!</p>
+            <form class="footer-subscride" id="subscribeForm">
+                <input type="email" placeholder="Ваш email" required>
+                <button type="submit">Подписаться</button>
+            </form>
+            <p class="subscride-note">Подписываясь, вы соглашаетесь с условиями</p>
+        </div>
+        <div class="footer-bottom">
+            <div class="footer-bottom-content"></div>
+            <p>&copy; 2026 Русский очаг. Все права защищены.</p>
+        </div>
+    </footer>
+
+    <script src="validation.js"></script>
+    <script src="utils.js"></script>
+
+    <script>
+    let currentCategory = 'all';
+    let currentSearch = '';
+    let currentSort = 'default';
+    let currentFavorites = [];
+
+    async function loadFavorites() {
+        const currentUser = getCurrentUser();
+        
+        if (!currentUser) {
+            currentFavorites = [];
+            renderFavorites();
+            return;
+        }
+        
+        try {
+            // Запрашиваем избранное с сервера (функция из recipes.js)
+            const favorites = await getFavorites();
+            // Сохраняем в массив (убеждаемся, что это массив)
+            currentFavorites = Array.isArray(favorites) ? favorites : [];
+            console.log('Избранное загружено:', currentFavorites);
+        } catch (error) {
+            console.error('Ошибка:', error);
+            currentFavorites = [];
+        }
+        
+        // Отрисовываем страницу с избранными рецептами
+        renderFavorites();
+    }
+
+    async function removeFromFavoritesAPI(recipeId) {
+        const currentUser = getCurrentUser();
+        if (!currentUser) return false;
+        
+        try {
+            // Вызываем API для удаления (функция из recipes.js)
+            const success = await removeFromFavorites(recipeId);
+            if (success) {
+                // Удаляем ID из локального массива
+                currentFavorites = currentFavorites.filter(id => id !== recipeId);
+                return true;
+            }
+            return false;
+        } catch (error) {
+            console.error('Ошибка удаления:', error);
+            return false;
+        }
+    }
+
+    function showMessage(message, isError = false) {
+        // Ищем или создаём элемент уведомления
+        let toast = document.getElementById('messageToast');
+        if (!toast) {
+            toast = document.createElement('div');
+            toast.id = 'messageToast';
+            toast.className = 'message-toast';
+            document.body.appendChild(toast);
+        }
+        
+        // Устанавливаем текст и цвет фона
+        toast.textContent = message;
+        // Красный/оранжевый для ошибки, зелёный для успеха
+        toast.style.backgroundColor = isError ? '#C6440E' : '#2C7A3E';
+        
+        // Показываем уведомление
+        toast.classList.add('show');
+        
+        setTimeout(() => {
+            toast.classList.remove('show');
+        }, 2000);
+    }
+
+    // ГЛАВНАЯ ФУНКЦИЯ: ОТОБРАЖЕНИЕ ИЗБРАННЫХ РЕЦЕПТОВ 
+    async function renderFavorites() {
+        const currentUser = getCurrentUser();
+        const container = document.getElementById('favoritesList');
+        const resultCount = document.getElementById('resultCount');
+        
+        if (!currentUser) {
+            container.innerHTML = `
+                <div style="display: flex; justify-content: center; align-items: center; min-height: 60vh;">
+                    <div style="text-align: center; padding: 60px 40px; background: white; border-radius: 30px; max-width: 500px; width: 90%; box-shadow: 0 8px 24px rgba(0,0,0,0.1);">
+                        <p style="margin-bottom: 25px; color: #5A3E2E; font-size: 18px;">Чтобы добавить рецепты в избранное, войдите в аккаунт</p>
+                        <a href="login.html" class="btn-first" style="display: inline-block;">Войти</a>
+                    </div>
+                </div>
+            `;
+            // Очищаем счётчик
+            if (resultCount) resultCount.textContent = '';
+            return;
+        }
+        
+        // СЛУЧАЙ 2: ПОЛЬЗОВАТЕЛЬ АВТОРИЗОВАН 
+        
+        // ФИЛЬТРАЦИЯ: оставляем только рецепты, ID которых есть в currentFavorites
+        // Переменная 'recipes' - это глобальный массив ВСЕХ рецептов (из recipes.js)
+        let favoriteRecipes = recipes.filter(recipe => currentFavorites.includes(recipe.id));
+        
+        // ФИЛЬТР ПО КАТЕГОРИИ (если выбрана не "все")
+        if (currentCategory !== 'all') {
+            favoriteRecipes = favoriteRecipes.filter(recipe => recipe.category === currentCategory);
+        }
+        
+        // ПОИСК ПО НАЗВАНИЮ
+        if (currentSearch) {
+            favoriteRecipes = favoriteRecipes.filter(recipe => 
+                recipe.name.toLowerCase().includes(currentSearch.toLowerCase())
+            );
+        }
+        
+        switch (currentSort) {
+            case 'name-asc':
+                favoriteRecipes.sort((a, b) => a.name.localeCompare(b.name));
+                break;
+            case 'name-desc':
+                favoriteRecipes.sort((a, b) => b.name.localeCompare(a.name));
+                break;
+            case 'category':
+                favoriteRecipes.sort((a, b) => a.category.localeCompare(b.category));
+                break;
+            default:
+                favoriteRecipes.sort((a, b) => a.id - b.id);
+        }
+        
+        // ОБНОВЛЯЕМ СЧЁТЧИК КОЛИЧЕСТВА
+        if (resultCount) {
+            resultCount.textContent = `В избранном: ${favoriteRecipes.length} рецептов`;
+        }
+        
+        // ОТРИСОВЫВАЕМ КАРТОЧКИ РЕЦЕПТОВ
+        container.innerHTML = favoriteRecipes.map(recipe => `
+            <div class="favorite-card" data-id="${recipe.id}">
+                <img src="${recipe.image}" alt="${recipe.name}">
+                <div class="favorite-badge">❤️</div>  <!-- Бейдж "избранное" -->
+                <div class="favorite-card-content">
+                    <h3>${escapeHtml(recipe.name)}</h3>  <!-- Защита от XSS -->
+                    <span class="favorite-category">${recipe.category}</span>
+                    <p>${escapeHtml(recipe.description.substring(0, 120))}${recipe.description.length > 120 ? '...' : ''}</p>
+                    <!-- Обрезаем описание до 120 символов -->
+                    <div class="favorite-actions">
+                        <button class="remove-favorite" data-id="${recipe.id}">Удалить</button>
+                        <button class="view-recipe" data-id="${recipe.id}">Рецепт</button>
+                    </div>
+                </div>
+            </div>
+        `).join('');  // join('') превращает массив в одну строку HTML
+        
+        // НАВЕШИВАЕМ ОБРАБОТЧИКИ НА КНОПКУ "УДАЛИТЬ"
+        document.querySelectorAll('.remove-favorite').forEach(btn => {
+            btn.addEventListener('click', async function(e) {
+                e.stopPropagation();  // Останавливаем всплытие события
+                const id = parseInt(this.dataset.id);  // Получаем ID рецепта
+                
+                // Вызываем API для удаления из избранного
+                const success = await removeFromFavoritesAPI(id);
+                if (success) {
+                    showMessage('Рецепт удалён из избранного', false);
+                    renderFavorites();  // Перерисовываем страницу
+                }
+            });
+        });
+        
+        // НАВЕШИВАЕМ ОБРАБОТЧИКИ НА КНОПКУ "РЕЦЕПТ" (переход на страницу рецепта)
+        document.querySelectorAll('.view-recipe').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const id = parseInt(this.dataset.id);
+                window.location.href = `recipe.html?id=${id}`;  // Переход с параметром id
+            });
+        });
+    }
+
+    // ИНИЦИАЛИЗАЦИЯ ПРИ ЗАГРУЗКЕ СТРАНИЦЫ
+    document.addEventListener('DOMContentLoaded', () => {
+        // Загружаем избранное пользователя
+        loadFavorites();
+        
+        // НАСТРОЙКА ПОЛЯ ПОИСКА
+        const searchInput = document.getElementById('searchInput');
+        if (searchInput) {
+            searchInput.addEventListener('input', (e) => {
+                currentSearch = e.target.value;  // Обновляем текст поиска
+                renderFavorites();                // Перерисовываем с новым фильтром
+            });
+        }
+        
+        // НАСТРОЙКА ВЫПАДАЮЩЕГО СПИСКА СОРТИРОВКИ
+        const sortSelect = document.getElementById('sortSelect');
+        if (sortSelect) {
+            sortSelect.addEventListener('change', (e) => {
+                currentSort = e.target.value;     // Обновляем тип сортировки
+                renderFavorites();                // Перерисовываем
+            });
+        }
+        
+        // НАСТРОЙКА ФИЛЬТРОВ ПО КАТЕГОРИЯМ (чипсы)
+        document.querySelectorAll('.filter-chip').forEach(chip => {
+            chip.addEventListener('click', () => {
+                // Убираем активный класс у всех чипсов
+                document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+                // Добавляем активный класс нажатому
+                chip.classList.add('active');
+                // Обновляем текущую категорию
+                currentCategory = chip.dataset.category;
+                // Перерисовываем
+                renderFavorites();
+            });
+        });
+        
+        // Активируем чипс "Все" по умолчанию
+        document.querySelector('.filter-chip[data-category="all"]')?.classList.add('active');
+    });
+    </script>
+</body>
+</html>

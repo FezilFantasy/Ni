@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Вход - Русский очаг</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+    <nav class="navigation">
+        <div class="link-info">
+            <a href="index.html" class="logo-link">
+                <img src="лого.png" alt="Русский очаг" class="logo-img">
+            </a>
+        </div>
+        <div class="navigation-links">
+            <a href="catalog.html">Каталог рецептов</a>
+            <a href="history.html">Истории происхождения рецептов</a>
+            <a href="favorites.html">Избранное</a>
+            <a href="login.html">Вход</a>
+        </div>
+    </nav>
+
+    <div class="entrance">
+        <div class="entrance-hero">
+            <h1>Добро пожаловать!</h1>
+            <p>Войдите в свой аккаунт</p>
+        </div>
+    </div>
+
+    <form id="loginForm" class="entrance-form">
+        <div class="form-group">
+            <label>Email</label>
+            <input type="email" id="email" placeholder="example@mail.ru">
+        </div>
+
+        <div class="form-group">
+            <label>Пароль</label>
+            <input type="password" id="password" placeholder="********">
+        </div>
+
+        <div class="checkbox-group">
+            <label class="checkbox-label">
+                <input type="checkbox" id="rememberMe">Запомнить меня
+            </label>
+        </div>
+
+        <button type="submit" class="btn-third">Войти</button>
+    </form>
+
+    <div class="entrance-footer">
+        <p>Нет аккаунта? <a href="register.html">Зарегистрируйтесь сейчас</a></p>
+    </div>
+
+    <div id="messageToast" class="message-toast"></div>
+
+    <script src="validation.js"></script>
+    <script src="utils.js"></script>
+    <script>
+    // ФУНКЦИЯ ДЛЯ ПОКАЗА ВСПЛЫВАЮЩИХ УВЕДОМЛЕНИЙ 
+    function showMessage(message, isError = false) {
+        // Пытаемся найти элемент уведомления на странице
+        let toast = document.getElementById('messageToast');
+        
+        // Если элемент не существует (ещё не создан)
+        if (!toast) {
+            // Создаём новый div для уведомлений
+            toast = document.createElement('div');
+            toast.id = 'messageToast';           // Устанавливаем ID
+            toast.className = 'message-toast';   // Устанавливаем CSS класс
+            document.body.appendChild(toast);    // Добавляем в конец страницы
+        }
+        
+        // Устанавливаем текст сообщения
+        toast.textContent = message;
+        
+        // Меняем цвет фона в зависимости от типа сообщения:
+        // isError = true  → красный/оранжевый цвет (#C6440E) - для ошибок
+        // isError = false → зелёный цвет (#2C7A3E) - для успешных действий
+        toast.style.backgroundColor = isError ? '#C6440E' : '#2C7A3E';
+        
+        // Показываем уведомление (добавляем CSS класс 'show')
+        toast.classList.add('show');
+        
+        // Через 2 секунды (2000 миллисекунд) скрываем уведомление
+        setTimeout(() => {
+            toast.classList.remove('show');
+        }, 2000);
+    }
+
+    // ВОССТАНОВЛЕНИЕ ЗАПОМНЕННОЙ ПОЧТЫ (ФУНКЦИЯ "ЗАПОМНИТЬ МЕНЯ")
+    // Проверяем, есть ли в локальном хранилище браузера сохранённый email
+    if (localStorage.getItem('remembered_email')) {
+        // Если есть - находим поле ввода email на странице
+        document.getElementById('email').value = localStorage.getItem('remembered_email');
+        // И автоматически ставим галочку "Запомнить меня"
+        document.getElementById('rememberMe').checked = true;
+    }
+
+    // ОБРАБОТЧИК ОТПРАВКИ ФОРМЫ ВХОДА
+    // Находим форму по ID и добавляем обработчик события 'submit' (отправка формы)
+    document.getElementById('loginForm').addEventListener('submit', async function(e) {
+        // Отменяем стандартное поведение формы (перезагрузку страницы)
+        e.preventDefault();
+        
+        // ПОЛУЧАЕМ ДАННЫЕ ИЗ ПОЛЕЙ ФОРМЫ
+        const email = document.getElementById('email').value.trim();     // Email, обрезаем пробелы по краям
+        const password = document.getElementById('password').value;       // Пароль (без обрезки, т.к. пробелы могут быть частью пароля)
+        const rememberMe = document.getElementById('rememberMe').checked; // Статус чекбокса (true/false)
+        
+        // ОТПРАВКА ЗАПРОСА НА СЕРВЕР
+        // Вызываем функцию loginUser() (которая определена в другом файле, например auth.js)
+        // Передаём email, пароль и флаг "запомнить меня"
+        const result = await loginUser(email, password, rememberMe);
+        
+        // ОБРАБОТКА РЕЗУЛЬТАТ
+        if (result.success) {
+            // Вход успешен:
+            showMessage('Вход выполнен успешно!');  // Показываем зелёное уведомление
+            
+            // Через 1 секунду перенаправляем пользователя на главную страницу
+            setTimeout(() => {
+                window.location.href = 'index.html';
+            }, 1000);
+        } else {
+            // Ошибка входа (неправильный email/пароль или другие проблемы):
+            showMessage(result.message, true);  // Показываем красное уведомление с текстом ошибки
+        }
+    });
+    </script>
+</body>
+</html>

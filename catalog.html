@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Каталог рецептов</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="recipes.js"></script>
+</head>
+<body>
+    <nav class="navigation">
+        <div class="link-info">
+            <a href="index.html" class="logo-link">
+                <img src="лого.png" alt="Русский очаг" class="logo-img">
+            </a>
+        </div>
+        <div class="navigation-links">
+            <a href="catalog.html">Каталог рецептов</a>
+            <a href="history.html">Истории происхождения рецептов</a>
+            <a href="favorites.html">Избранное</a>
+            <a href="login.html" id="authLink">Вход</a>
+        </div>
+    </nav>
+    
+    <main>
+        <section class="hero">
+            <h1>Каталог рецептов</h1>
+            <p>Здесь мы представляем Вам свои фирменные рецепты русской кухни, где каждый найдет для себя что-то свое!</p>
+        </section>
+    </main>
+
+    <div class="catalog-controls">
+        <div class="search-box">
+            <input type="text" id="search-input" placeholder="Поиск рецептов...">
+        </div>
+        <div class="sort-box">
+            <select class="sortSelect" id="sortSelect">
+                <option value="default">Сортировка: по умолчанию</option>
+                <option value="name-asc">Название: А-Я</option>
+                <option value="name-desc">Название: Я-А</option>
+                <option value="popular">Популярные</option>
+            </select>
+        </div>
+    </div>
+
+    <div class="filters">
+        <div class="filters-box">
+            <div class="filter-chip" data-category="all">Все</div>
+            <div class="filter-chip" data-category="салаты">Салаты</div>
+            <div class="filter-chip" data-category="супы">Супы</div>
+            <div class="filter-chip" data-category="каши">Каши</div>
+            <div class="filter-chip" data-category="пироги">Пироги</div>
+            <div class="filter-chip" data-category="торты">Торты</div>
+            <div class="filter-chip" data-category="напитки">Напитки</div>
+        </div>
+    </div>
+
+    <div class="results-count" id="resultCount"></div>
+    <div id="catalog" class="products-grid"></div>
+
+    <footer class="footer">
+        <div class="footer-contacts">
+            <div class="footer-col">
+                <h2>Русский очаг</h2>
+                <p>Ваш надежный помощник в приготовлении русской кухни!</p>
+            </div>
+        </div>
+        <div class="footer-col">
+            <h2>Контакты</h2>
+            <ul class="footer-info">
+                <li>Номер телефона: 8(841)255-19-23</li>
+                <li>Электронная почта: russianochag@mail.ru</li>
+                <li>Адрес: г. Пенза, ул. Пушкина, д. 2</li>
+                <li>Режим работы: пн-вс: 9:00 - 21:00</li>
+            </ul>
+        </div>
+        <div class="footer-col">
+            <h3>Подписка</h3>
+            <p>Будьте в курсе новых рецептов от топовых поваров!</p>
+            <form class="footer-subscride" id="subscribeForm">
+                <input type="email" placeholder="Ваш email" required>
+                <button type="submit">Подписаться</button>
+            </form>
+            <p class="subscride-note">Подписываясь, вы соглашаетесь с условиями</p>
+        </div>
+        <div class="footer-bottom">
+            <div class="footer-bottom-content"></div>
+            <p>&copy; 2026 Русский очаг. Все права защищены.</p>
+        </div>
+    </footer>
+    
+    <script src="validation.js"></script>
+    <script src="utils.js"></script>
+    <script>
+        let currentCategory = 'all';
+        let currentSearch = '';
+        let currentSort = 'default'; 
+        let currentFavorites = [];
+
+        // ЗАГРУЗКА ИЗБРАННОГО С СЕРВЕРА
+        async function loadFavorites() {
+            const currentUser = getCurrentUser();
+            if (!currentUser) {
+                currentFavorites = [];
+                renderRecipes();
+                return;
+            }
+            
+            try {
+                // запрос к серверу за избранным текущего пользователя
+                const response = await fetch(`http://localhost:3000/api/favorites/${currentUser.id}`);
+                const data = await response.json(); // Преобразуем ответ сервера из JSON в объект JavaScript
+                currentFavorites = data.favorites || [];  // сохраняем ID избранных рецептов
+                renderRecipes();
+            } catch (error) {
+                console.error('Ошибка:', error);
+                currentFavorites = [];
+                renderRecipes();
+            }
+        }
+
+        // ДОБАВЛЕНИЕ В ИЗБРАННОЕ (API)
+        async function addToFavoritesAPI(recipeId) {
+            const currentUser = getCurrentUser();
+            if (!currentUser) return false;
+            
+            try {
+                const response = await fetch('http://localhost:3000/api/favorites', {
+                    method: 'POST', // метод POST для создания
+                    headers: {'Content-Type': 'application/json' },
+                    body: JSON.stringify({ userId: currentUser.id, recipeId })  // отправляем данные
+                });
+                const data = await response.json(); // Преобразуем ответ сервера в объект
+                if (data.success) {
+                    currentFavorites.push(recipeId);  // добавляем ID в локальный массив
+                    return true;
+                }
+                return false;
+            } catch (error) {
+                return false;
+            }
+        }
+        
+        //  УДАЛЕНИЕ ИЗ ИЗБРАННОГО (API) 
+        async function removeFromFavoritesAPI(recipeId) {
+            const currentUser = getCurrentUser();
+            if (!currentUser) return false;
+            
+            try {
+                const response = await fetch('http://localhost:3000/api/favorites', { // Отправляем DELETE-запрос на сервер
+                    method: 'DELETE',
+                    headers: { 'Content-Type': 'application/json' }, // Говорим серверу, что отправляем JSON
+                    body: JSON.stringify({ userId: currentUser.id, recipeId }) // Отправляем ID пользователя и рецепта
+                });
+                const data = await response.json();
+                if (data.success) { // Если сервер вернул success: true
+                    currentFavorites = currentFavorites.filter(id => id !== recipeId); // удаляем из массива
+                    return true;
+                }
+                return false;
+            } catch (error) {
+                return false;
+            }
+        }
+
+        // ПРОВЕРКА: В ИЗБРАННОМ ЛИ РЕЦЕПТ
+        function isFavorite(recipeId) {
+            return currentFavorites.includes(recipeId);     // true если ID есть в массиве
+        }
+
+        // ОСНОВНАЯ ФУНКЦИЯ ОТРИСОВКИ РЕЦЕПТОВ
+        function renderRecipes() {
+            if (!recipes || recipes.length === 0) {          // проверяем, загружен ли recipes.js
+                console.error('recipes.js не загружен!');
+                return;
+            }
+
+            // КОПИРУЕМ МАССИВ РЕЦЕПТОВ
+            let filtered = [...recipes];
+
+            if (currentCategory !== 'all') {
+                filtered = filtered.filter(recipe => recipe.category === currentCategory);
+            }
+
+            if (currentSearch) {
+                filtered = filtered.filter(recipe => recipe.name.toLowerCase().includes(currentSearch.toLowerCase()));
+            }
+
+            switch(currentSort) {
+                case 'name-asc': 
+                    filtered.sort((a,b) => a.name.localeCompare(b.name));
+                    break;
+                case 'name-desc':
+                    filtered.sort((a,b) => b.name.localeCompare(a.name));
+                    break;
+                case 'popular':
+                    filtered.sort((a,b) => (b.popularity || 0) - (a.popularity || 0));
+                    break;
+                default:
+                    filtered.sort((a,b) => a.id - b.id);
+            }
+
+            // ОТРИСОВКА HTML
+            const container = document.getElementById('catalog');
+            if (container) {
+                container.innerHTML = filtered.map(recipe => {
+                    const favStatus = isFavorite(recipe.id);   // проверяем, в избранном ли рецепт
+                    return `
+                    <div class="recipe-card">
+                        <img src="${recipe.image}" alt="${recipe.name}">
+                        <h3>${recipe.name}</h3>
+                        <p>${recipe.description.substring(0, 100)}...</p>
+                        ${recipe.badge ? `<span class="badge">${recipe.badge}</span>` : ''}
+                        <div class="card-buttons">
+                            <a href="recipe.html?id=${recipe.id}" class="recipe-btn">Рецепт</a>
+                            <button class="favorite-btn ${favStatus ? 'active' : ''}" data-id="${recipe.id}">
+                                ${favStatus ? '❤️' : '🤍'}     <!-- красное сердце если в избранном -->
+                            </button>
+                        </div>
+                    </div>
+                    `;
+                }).join('');  // join('') превращает массив в строку
+            }
+
+            // НАВЕШИВАЕМ ОБРАБОТЧИКИ НА КНОПКИ ИЗБРАННОГО
+            document.querySelectorAll('.favorite-btn').forEach(btn => {
+                btn.addEventListener('click', async function(e) {
+                    e.preventDefault();                       // отменяем стандартное поведение
+                    const recipeId = parseInt(this.dataset.id);
+                    const currentUser = getCurrentUser();
+                    
+                    // проверка авторизации
+                    if (!currentUser) {
+                        showMessage('Войдите в аккаунт', true);
+                        setTimeout(() => {
+                            window.location.href = 'login.html';
+                        }, 1000);
+                        return;
+                    }
+                    
+                    // если рецепт уже в избранном - удаляем
+                    if (isFavorite(recipeId)) {
+                        const success = await removeFromFavoritesAPI(recipeId);
+                        if (success) {
+                            showMessage('Рецепт удалён из избранного', false);
+                            this.innerHTML = '🤍';
+                            this.classList.remove('active');
+                            renderRecipes();  // перерисовываем весь каталог
+                        }
+                    } 
+                    // если не в избранном - добавляем
+                    else {
+                        const success = await addToFavoritesAPI(recipeId);
+                        if (success) {
+                            showMessage('Рецепт добавлен в избранное', false);
+                            this.innerHTML = '❤️';
+                            this.classList.add('active');
+                            renderRecipes();  // перерисовываем весь каталог
+                        }
+                    }
+                });
+            });
+
+            // ОБНОВЛЯЕМ СЧЁТЧИК РЕЗУЛЬТАТОВ
+            const resultCount = document.getElementById('resultCount');
+            if (resultCount) {
+                resultCount.textContent = `Найдено рецептов: ${filtered.length}`;
+            }
+        }
+
+        // ИНИЦИАЛИЗАЦИЯ ПРИ ЗАГРУЗКЕ СТРАНИЦЫ
+        document.addEventListener('DOMContentLoaded', () => {
+            loadFavorites();    // загружаем избранное
+            
+            // ПОЛЕ ПОИСКА
+            const searchInput = document.getElementById('search-input');
+            if (searchInput) {
+                searchInput.addEventListener('input', (e) => {
+                    currentSearch = e.target.value;   // обновляем поисковый запрос
+                    renderRecipes();
+                });
+            }
+            
+            // ВЫПАДАЮЩИЙ СПИСОК СОРТИРОВКИ
+            const sortSelect = document.getElementById('sortSelect');
+            if (sortSelect) {
+                sortSelect.addEventListener('change', (e) => {
+                    currentSort = e.target.value;      // обновляем тип сортировки
+                    renderRecipes();
+                });
+            }
+            
+            // ФИЛЬТРЫ ПО КАТЕГОРИЯМ
+            document.querySelectorAll('.filter-chip').forEach(chip => {
+                chip.addEventListener('click', () => {
+                    // убираем active у всех
+                    document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+                    // добавляем active на текущий
+                    chip.classList.add('active');
+                    // обновляем категорию
+                    currentCategory = chip.dataset.category;
+                    renderRecipes();
+                });
+            });
+            
+            // АКТИВИРУЕМ "ВСЕ" ПО УМОЛЧАНИЮ
+            document.querySelector('.filter-chip[data-category="all"]')?.classList.add('active');
+        });
+    </script>
+</body>
+</html>
